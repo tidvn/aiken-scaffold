@@ -1,0 +1,18 @@
+[test]
+# Timeout for each test in milliseconds
+timeout = 60000
+
+# Preload modules before running tests
+# preload = []
+
+# Test file patterns
+patterns = [
+  "tests/**/*.test.ts",
+  "tests/**/*.test.js", 
+  "**/*.test.ts",
+  "**/*.test.js"
+]
+
+# Environment variables for tests
+[test.env]
+NODE_ENV = "test"
