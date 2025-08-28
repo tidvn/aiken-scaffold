@@ -1,7 +1,7 @@
 {
-    "name": "cardano-marketplace",
+    "name": "aiken-contracts",
     "version": "1.0.0",
-    "description": "🇻🇳 Cardano App Development Course: A Step-by-Step Guide for Beginners - From basic Web development to use Cardano Libraries and interacting with Smart Contracts",
+    "description": "Smart Contracts for Cardano",
     "main": "index.ts",
     "directories": {
         "lib": "lib",
