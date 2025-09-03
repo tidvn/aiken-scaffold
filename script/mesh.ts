@@ -44,7 +44,7 @@ export class MeshAdapter {
         });
         this.network = (process.env.BLOCKFROST_PROJECT_ID?.slice(0, 7) as Network) || "preprod";
         this.networkId = this.network == "mainnet" ? 1 : 0;
-        this.contractCompileCode = this.readValidator(blueprint, "contract.contract.spend");
+        this.contractCompileCode = this.readValidator(blueprint, "contract.sensor.spend");
 
         this.contractScriptCbor = applyParamsToScript(this.contractCompileCode, []);
 

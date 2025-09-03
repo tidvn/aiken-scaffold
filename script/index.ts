@@ -12,65 +12,58 @@ import {
     mConStr1,
     Asset,
     stringToHex,
+    ForgeScript,
+    resolveScriptHash,
 } from "@meshsdk/core";
 import { MeshAdapter } from "./mesh";
 
 export class Contract extends MeshAdapter {
     /**
-     * @method Lock
+     * @method write
      *
      */
-    lock = async ({
-        assets,
-    }: {
-        assets: Asset[];
-    }): Promise<string> => {
-        const { utxos, walletAddress, collateral } = await this.getWalletForTx();
-        const { pubKeyHash, stakeCredentialHash } =
-            deserializeAddress(walletAddress);
+    write = async ({ unit, title, value }: { unit?: string, title: string, value: number }) => {
+        const { utxos, collateral, walletAddress } = await this.getWalletForTx();
+        const ownerPaymentKeyHash = deserializeAddress(walletAddress).pubKeyHash;
+        const forgingScript = ForgeScript.withOneSignature(walletAddress);
+        const policyId = resolveScriptHash(forgingScript);
+        const utxo = await this.getAddressUTXOAsset(this.contractAddress, policyId + stringToHex(title));
         const unsignedTx = this.meshTxBuilder
-            .txOut(this.contractAddress, assets)
-            .txOutDatumHashValue(mConStr0([pubKeyHash]))
+        if (!utxo) {
+            unsignedTx
+                .mint("1", policyId, stringToHex(title))
+                .mintingScript(forgingScript)
+                .txOut(this.contractAddress, [{
+                    unit: policyId + stringToHex(title),
+                    quantity: String(1),
+                }])
+                .txOutInlineDatumValue(mConStr0([ownerPaymentKeyHash, value]));
+        } else {
+            unsignedTx
+                .spendingPlutusScriptV3()
+                .txIn(utxo.input.txHash, utxo.input.outputIndex)
+                .txInInlineDatumPresent()
+                .txInRedeemerValue(mConStr0([]))
+                .txInScript(this.contractScriptCbor)
+                .txOut(this.contractAddress, [{
+                    unit: policyId + stringToHex(title),
+                    quantity: String(1),
+                }])
+                .txOutInlineDatumValue(mConStr0([ownerPaymentKeyHash, value]))
+        }
+
+        unsignedTx
             .changeAddress(walletAddress)
+            .requiredSignerHash(deserializeAddress(walletAddress).pubKeyHash)
             .selectUtxosFrom(utxos)
-        return await unsignedTx.complete();
-    };
-    /**
-     * @method Lock
-     *
-     */
-    unlock = async ({
-        txHash,
-    }: {
-        txHash: string;
-    }): Promise<string> => {
-        const { utxos, walletAddress, collateral } = await this.getWalletForTx();
-        const scriptUtxo = await this.getUtxoForTx(this.contractAddress, txHash)
-        const { pubKeyHash, stakeCredentialHash } =
-            deserializeAddress(walletAddress);
-
-
-        const unsignedTx = this.meshTxBuilder
-            .spendingPlutusScript("V3") // we used plutus v3
-            .txIn( // spend the utxo from the script address
-                scriptUtxo.input.txHash,
-                scriptUtxo.input.outputIndex,
-                scriptUtxo.output.amount,
-                scriptUtxo.output.address
-            )
-            .txInScript(this.contractScriptCbor)
-            .txInRedeemerValue(mConStr0([stringToHex("Hello, World!")]))
-            .txInDatumValue(mConStr0([pubKeyHash]))
-            .requiredSignerHash(pubKeyHash)
-            .changeAddress(walletAddress)
             .txInCollateral(
                 collateral.input.txHash,
                 collateral.input.outputIndex,
                 collateral.output.amount,
-                collateral.output.address
+                collateral.output.address,
             )
-            .selectUtxosFrom(utxos)
+            .setNetwork("preprod");
         return await unsignedTx.complete();
-    };
+    }
 
 }

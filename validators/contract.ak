@@ -1,32 +1,41 @@
-use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
-use aiken/primitive/string
-use cardano/transaction.{OutputReference, Transaction}
+use cardano/transaction.{InlineDatum, OutputReference, Transaction, find_input}
+use cardano/tx
 
 pub type Datum {
   owner: VerificationKeyHash,
+  value: Int,
 }
 
 pub type Redeemer {
-  msg: ByteArray,
+  Update
+  Withdraw
 }
 
-validator contract {
+validator sensor {
   spend(
-    datum: Option<Datum>,
+    datum_otp: Option<Datum>,
     redeemer: Redeemer,
-    _own_ref: OutputReference,
-    self: Transaction,
+    output_reference: OutputReference,
+    transaction: Transaction,
   ) {
-    trace @"redeemer": string.from_bytearray(redeemer.msg)
-    expect Some(Datum { owner }) = datum
-    let must_say_hello = redeemer.msg == "Hello, World!"
-    let must_be_signed = list.has(self.extra_signatories, owner)
-    must_say_hello? && must_be_signed?
+    expect Some(datum_input) = datum_otp
+    let Transaction { inputs, extra_signatories, .. } = transaction
+    expect Some(input) = find_input(inputs, output_reference)
+    expect InlineDatum(datum_output_inline) = input.output.datum
+    expect datum_output: Datum = datum_output_inline
+    when tx.verify_signature(extra_signatories, datum_input.owner) is {
+      True ->
+        when redeemer is {
+          Update -> True
+          Withdraw -> datum_output.value >= datum_input.value
+        }
+
+      False -> False
+    }
   }
 
   else(_) {
     fail
   }
 }
-

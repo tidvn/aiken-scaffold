@@ -32,7 +32,7 @@ describe("Test", function () {
                 words: process.env.MNEMONIC?.split(" ") || [],
             },
         });
-        const balance = await appWallet.getBalance()
+        const balance = await appWallet.getLovelace()
         console.log(balance)
     });
 
@@ -43,9 +43,21 @@ describe("Test", function () {
         console.log(result)
     });
 
-    test("lock", async function () {
-        // return;
-        const marketplaceContract: Contract = new Contract({
+    test("check", async function () {
+        const contract: Contract = new Contract({
+            wallet: appWallet,
+            fetcher: provider,
+            provider: provider,
+        });
+        const contractAddress = contract.contractAddress
+        const utxos = await provider.fetchAddressUTxOs(contractAddress)
+
+        console.log(utxos)
+    });
+
+    test("write", async function () {
+        return;
+        const contract: Contract = new Contract({
             wallet: appWallet,
             fetcher: provider,
             provider: provider,
@@ -56,12 +68,19 @@ describe("Test", function () {
                 quantity: "1000000",
             },
         ];
-        const lockUnsignedTx: string = await marketplaceContract.lock({ assets: assets });
-        const lockSignedTx = await appWallet.signTx(lockUnsignedTx, true);
-        const txHash1 = await provider.submitTx(lockSignedTx);
-        console.log("Lock Transaction submitted successfully:", txHash1);
-        expect(txHash1).toBeDefined();
-        expect(txHash1.length).toBe(64);
+        const unsignedTx: string = await contract.write({
+            title: "Temperature",
+            value: 60,
+        });
+
+        const signedTx = await appWallet.signTx(unsignedTx, true);
+        const txHash = await appWallet.submitTx(signedTx);
+        console.log("https://preprod.cexplorer.io/tx/" + txHash);
+        txHashTemp = txHash;
+
+        console.log("Lock Transaction submitted successfully:", txHash);
+        expect(txHash).toBeDefined();
+        expect(txHash.length).toBe(64);
     }, 60000); // Set timeout to 60 seconds
 
 });
